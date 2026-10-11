@@ -1,56 +1,41 @@
-
-import os
-import sys
-import shutil
 import subprocess
+import sys
+import os
 
-# Carpeta donde se encuentra este archivo Python
+# Ruta de la carpeta donde está este archivo
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# En Render, puedes configurar esta variable de entorno.
-# Si no existe, se utiliza cookies.txt junto al archivo Python.
-COOKIES_PATH = os.getenv(
-    "YTDLP_COOKIES_FILE",
-    os.path.join(BASE_DIR, "cookies.txt")
-)
+# Archivo de cookies
+COOKIES_PATH = os.path.join(BASE_DIR, "cookies.txt")
 
 
 def get_youtube_audio_url(video_url):
     try:
-        if not video_url or not video_url.startswith(
-            ("https://www.youtube.com/", "https://youtu.be/",
-             "https://youtube.com/")
-        ):
-            print("Error: la URL de YouTube no es válida.")
-            return None
-
-        if not shutil.which("deno"):
-            print(
-                "Aviso: Deno no está disponible. "
-                "Instálalo en el entorno de Render."
-            )
-
         command = [
             sys.executable,
-            "-m", "yt_dlp",
+            "-m",
+            "yt_dlp",
+
+            "--no-warnings",
             "--no-playlist",
-            "--js-runtimes", "deno",
-            "--retries", "3",
-            "--socket-timeout", "30",
-            "-f", "bestaudio/best",
+
+            "-f",
+            "bestaudio/best",
+
+            "--get-url",
+
+            "--extractor-args",
+            "youtube:player_client=default",
+
+            video_url
         ]
 
-        # Utilizar cookies solo si el archivo existe.
+        # Utilizar cookies solo si el archivo existe
         if os.path.isfile(COOKIES_PATH):
-            command.extend(["--cookies", COOKIES_PATH])
-            print("Archivo de cookies encontrado.")
-        else:
-            print(
-                "No se encontró cookies.txt. "
-                "Se intentará sin cookies."
-            )
-
-        command.extend(["-g", video_url])
+            command[3:3] = [
+                "--cookies",
+                COOKIES_PATH
+            ]
 
         print("Extrayendo audio...")
 
@@ -58,11 +43,16 @@ def get_youtube_audio_url(video_url):
             command,
             capture_output=True,
             text=True,
-            timeout=120,
             cwd=BASE_DIR,
-            check=True
+            timeout=90
         )
 
+        if result.returncode != 0:
+            print("Error de yt-dlp:")
+            print(result.stderr)
+            return None
+
+        # Obtener la URL generada
         urls = [
             line.strip()
             for line in result.stdout.splitlines()
@@ -70,21 +60,15 @@ def get_youtube_audio_url(video_url):
         ]
 
         if not urls:
-            print("No se encontró una URL de audio.")
-            if result.stderr:
-                print(result.stderr[-3000:])
+            print("No se encontró ninguna URL de audio.")
+            print(result.stdout)
             return None
 
         print("URL obtenida correctamente.")
         return urls[0]
 
     except subprocess.TimeoutExpired:
-        print("Error: tiempo de extracción agotado.")
-        return None
-
-    except subprocess.CalledProcessError as e:
-        print("Error de yt-dlp:")
-        print((e.stderr or str(e))[-4000:])
+        print("Tiempo de espera agotado al obtener el audio.")
         return None
 
     except Exception as e:
