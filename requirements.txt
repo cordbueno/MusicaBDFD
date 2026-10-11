@@ -1,0 +1,8 @@
+
+fastapi
+uvicorn[standard]
+discord.py[voice]
+PyNaCl
+yt-dlp
+requests
+aiohttp
