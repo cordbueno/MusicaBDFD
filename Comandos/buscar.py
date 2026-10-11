@@ -1,62 +1,85 @@
 
-import subprocess
-import sys
 import os
+import sys
 import shutil
+import subprocess
 
-# En Render, configura esta variable en Environment.
-# En Windows, puedes seguir utilizando cookies.txt localmente.
+# Carpeta donde se encuentra este archivo Python
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# En Render, puedes configurar esta variable de entorno.
+# Si no existe, se utiliza cookies.txt junto al archivo Python.
 COOKIES_PATH = os.getenv(
     "YTDLP_COOKIES_FILE",
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
+    os.path.join(BASE_DIR, "cookies.txt")
 )
 
 
 def get_youtube_audio_url(video_url):
     try:
+        if not video_url or not video_url.startswith(
+            ("https://www.youtube.com/", "https://youtu.be/",
+             "https://youtube.com/")
+        ):
+            print("Error: la URL de YouTube no es válida.")
+            return None
+
+        if not shutil.which("deno"):
+            print(
+                "Aviso: Deno no está disponible. "
+                "Instálalo en el entorno de Render."
+            )
+
         command = [
             sys.executable,
             "-m", "yt_dlp",
             "--no-playlist",
-            "--no-warnings",
             "--js-runtimes", "deno",
-            "-g",
+            "--retries", "3",
+            "--socket-timeout", "30",
             "-f", "bestaudio/best",
         ]
 
-        # Solo usar cookies si el archivo existe.
+        # Utilizar cookies solo si el archivo existe.
         if os.path.isfile(COOKIES_PATH):
             command.extend(["--cookies", COOKIES_PATH])
+            print("Archivo de cookies encontrado.")
         else:
-            print("Archivo de cookies no encontrado; intentando sin cookies.")
+            print(
+                "No se encontró cookies.txt. "
+                "Se intentará sin cookies."
+            )
+
+        command.extend(["-g", video_url])
 
         print("Extrayendo audio...")
 
-        # Comprueba si Deno está disponible.
-        if not shutil.which("deno"):
-            print("Aviso: Deno no está disponible en el PATH.")
-
         result = subprocess.run(
-            command + [video_url],
+            command,
             capture_output=True,
             text=True,
             timeout=120,
-            check=True,
-            cwd=os.path.dirname(os.path.abspath(__file__))
+            cwd=BASE_DIR,
+            check=True
         )
 
-        audio_url = result.stdout.strip().splitlines()
+        urls = [
+            line.strip()
+            for line in result.stdout.splitlines()
+            if line.strip().startswith("https://")
+        ]
 
-        if audio_url and audio_url[0].startswith("http"):
-            print("URL obtenida correctamente.")
-            return audio_url[0]
+        if not urls:
+            print("No se encontró una URL de audio.")
+            if result.stderr:
+                print(result.stderr[-3000:])
+            return None
 
-        print("No se encontró una URL de audio válida.")
-        print(result.stderr[-2000:])
-        return None
+        print("URL obtenida correctamente.")
+        return urls[0]
 
     except subprocess.TimeoutExpired:
-        print("La extracción superó el límite de 120 segundos.")
+        print("Error: tiempo de extracción agotado.")
         return None
 
     except subprocess.CalledProcessError as e:
