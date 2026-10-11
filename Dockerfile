@@ -7,18 +7,15 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 
-# Instalar FFmpeg y aplicar actualizaciones de seguridad
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends ffmpeg \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar las dependencias de Python
 COPY requirements.txt .
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código del proyecto
 COPY . .
 
 EXPOSE 8000
