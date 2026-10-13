@@ -1,75 +1,49 @@
+import subprocess
+import sys
 import os
-from pathlib import Path
-from typing import Any
 
-import yt_dlp
-
-BASE_DIR = Path(__file__).resolve().parent
-COOKIES_PATH = BASE_DIR / "cookies.txt"
+COOKIES_PATH = "cookies.txt"
 
 
-def get_youtube_audio_info(video_url: str) -> dict[str, Any] | None:
-    """Obtiene una URL reciente de audio y los encabezados HTTP para FFmpeg."""
-    options = {
-        "format": "bestaudio/best",
-        "noplaylist": True,
-        "quiet": True,
-        "no_warnings": False,
-        "extractor_retries": 3,
-        "socket_timeout": 30,
-        "remote_components": ["ejs:github"],
-    }
-
-    # Usa cookies únicamente si el archivo existe en el contenedor.
-    if COOKIES_PATH.is_file():
-        options["cookiefile"] = str(COOKIES_PATH)
-
+def get_youtube_audio_url(video_url):
     try:
-        print(f"Extrayendo información de audio: {video_url}")
-        with yt_dlp.YoutubeDL(options) as ydl:
-            info = ydl.extract_info(video_url, download=False)
+        command = [
+            sys.executable,
+            "-m",
+            "yt_dlp",
+            "-g",
+            "-f",
+            "bestaudio/best",
+            "--cookies",
+            COOKIES_PATH,
+            video_url
+        ]
 
-        if not info:
-            print("yt-dlp no devolvió información del video.")
-            return None
+        print("Extrayendo audio...")
 
-        audio_url = info.get("url")
-        headers = info.get("http_headers") or {}
-
-        if not audio_url:
-            # Respaldo por si yt-dlp devuelve los formatos en vez de la URL principal.
-            formats = info.get("formats") or []
-            audio_formats = [
-                item for item in formats
-                if item.get("url") and item.get("acodec") != "none"
-            ]
-            if audio_formats:
-                selected = audio_formats[-1]
-                audio_url = selected.get("url")
-                headers = selected.get("http_headers") or headers
-
-        if not audio_url:
-            print("No se encontró una URL directa de audio.")
-            return None
-
-        # FFmpeg suele necesitar un User-Agent y Referer coherentes con la extracción.
-        headers = dict(headers)
-        headers.setdefault(
-            "User-Agent",
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=os.path.dirname(os.path.abspath(__file__))
         )
-        headers.setdefault("Referer", "https://www.youtube.com/")
 
-        print("URL de audio y encabezados obtenidos correctamente.")
-        return {"url": audio_url, "headers": headers}
+        audio_url = result.stdout.strip()
 
-    except Exception as exc:
-        print(f"Error de yt-dlp: {exc}")
+        if audio_url:
+            print("URL obtenida correctamente.")
+            return audio_url
+
+        print("No se encontró la URL del audio.")
         return None
 
+    except subprocess.CalledProcessError as e:
+        print("Error de yt-dlp:")
+        print(e.stderr)
+        return None
 
-def get_youtube_audio_url(video_url: str) -> str | None:
-    """Compatibilidad con código que solo necesita la URL de audio."""
-    info = get_youtube_audio_info(video_url)
-    return info["url"] if info else None
+    except Exception as e:
+        print(f"Error inesperado: {e}")
+        return None
+
