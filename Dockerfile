@@ -1,23 +1,31 @@
 
-FROM python:3.12-slim-trixie
+FROM python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PIP_DISABLE_PIP_VERSION_CHECK=1
-
-WORKDIR /app
-
-RUN apt-get update \
-    && apt-get upgrade -y \
-    && apt-get install -y --no-install-recommends ffmpeg \
-    && apt-get clean \
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN python -m pip install --no-cache-dir -r requirements.txt
+# Instalar Deno
+ENV DENO_INSTALL=/usr/local
 
+RUN curl -fsSL https://deno.land/install.sh | sh \
+    && ln -sf /usr/local/bin/deno /usr/local/bin/deno
+
+# Configurar directorio del proyecto
+WORKDIR /app
+
+# Instalar dependencias Python
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir "yt-dlp[default]" \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Copiar archivos del proyecto
 COPY . .
 
-EXPOSE 8000
-
-CMD ["sh", "-c", "uvicorn api:app --host 0.0.0.0 --port ${PORT:-10000}"]
+# Iniciar FastAPI
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
