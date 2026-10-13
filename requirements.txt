@@ -3,6 +3,6 @@ fastapi
 uvicorn[standard]
 discord.py[voice]
 PyNaCl
-yt-dlp
+yt-dlp[default]
 requests
 aiohttp
