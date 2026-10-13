@@ -1,4 +1,4 @@
-```dockerfile
+
 FROM python:3.12-slim
 
 # Instalar dependencias del sistema
@@ -34,4 +34,4 @@ RUN deno --version
 
 # Iniciar FastAPI desde api.py
 CMD ["sh", "-c", "uvicorn api:app --host 0.0.0.0 --port ${PORT:-8000}"]
-```
+
