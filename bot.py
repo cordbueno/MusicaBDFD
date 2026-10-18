@@ -189,11 +189,14 @@ class MusicBot(commands.Bot):
             query
         )
 
+        from youtube_search import YoutubeSearch
+        info = YoutubeSearch(url, max_results=1).to_dict()[0]
         elemento = {
             "titulo": titulo,
             "url": url,
             "resultado": resultado,
             "query": query,
+            "informacion": [info]
             "_intentos": 0
         }
 
