@@ -196,7 +196,7 @@ class MusicBot(commands.Bot):
             "url": url,
             "resultado": resultado,
             "query": query,
-            "informacion": [info]
+            "informacion": [info],
             "_intentos": 0
         }
 
