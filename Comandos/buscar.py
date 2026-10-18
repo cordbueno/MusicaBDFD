@@ -1,29 +1,49 @@
+import subprocess
+import sys
 import os
-import yt_dlp
+
+COOKIES_PATH = "cookies.txt"
 
 
-# Ruta de cookies.txt, si existe.
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-COOKIES_PATH = os.path.abspath(
-    os.path.join(BASE_DIR, "..", "cookies.txt")
-)
+def get_youtube_audio_url(video_url):
+    try:
+        command = [
+            sys.executable,
+            "-m",
+            "yt_dlp",
+            "-g",
+            "-f",
+            "bestaudio/best",
+            "--cookies",
+            COOKIES_PATH,
+            video_url
+        ]
 
+        print("Extrayendo audio...")
 
-def get_youtube_audio_url(url):
-    """
-    Obtiene una URL de audio de YouTube y sus cabeceras HTTP.
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=os.path.dirname(os.path.abspath(__file__))
+        )
 
-    Acepta:
-    - Una URL de YouTube.
-    - Un diccionario con información del video.
-    - Un resultado de búsqueda que contenga la URL o el ID.
-    """
+        audio_url = result.stdout.strip()
 
-    opciones = {
-    "format": "bestaudio/best",
-    "quiet": True,
-    }
+        if audio_url:
+            print("URL obtenida correctamente.")
+            return audio_url
 
-    with yt_dlp.YoutubeDL(opciones) as ydl:
-        info = ydl.extract_info(url, download=False)
-        return info["url"]
+        print("No se encontró la URL del audio.")
+        return None
+
+    except subprocess.CalledProcessError as e:
+        print("Error de yt-dlp:")
+        print(e.stderr)
+        return None
+
+    except Exception as e:
+        print(f"Error inesperado: {e}")
+        return None
+
