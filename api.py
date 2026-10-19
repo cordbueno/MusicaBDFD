@@ -1,4 +1,3 @@
-
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -56,21 +55,9 @@ async def inicio():
     return {"mensaje": "API de música funcionando"}
 
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 @app.post("/bot/iniciar")
 async def iniciar_bot(datos: IniciarBotRequest):
-    try:
-        resultado = await music_bots.iniciar(datos.bot_id)
-        return resultado
-    except Exception as error:
-        logger.exception("Error al iniciar el bot %s", datos.bot_id)
-        raise HTTPException(
-            status_code=500,
-            detail=f"{type(error).__name__}: {error}"
-        ) from error
+    return await ejecutar(music_bots.iniciar, datos.bot_id)
 
 
 @app.get("/bot/estado")
@@ -148,6 +135,3 @@ async def salir(datos: ServidorRequest):
         bot.salir_canal,
         datos.guild_id
     )
-
-
-
